@@ -1,0 +1,2 @@
+---
+host_to_add: "{{ target_hosts | split('\n') | map('trim') | difference(['']) }}"

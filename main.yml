@@ -1,0 +1,7 @@
+---
+- name: "Commvault | Dynamic inventory"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - commvault_distribution

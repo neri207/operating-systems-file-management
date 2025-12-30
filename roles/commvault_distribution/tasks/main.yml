@@ -1,0 +1,4 @@
+---
+- import_tasks: create_inventory.yml
+- import_tasks: download_from_gcp.yml
+- import_tasks: distribute.yml

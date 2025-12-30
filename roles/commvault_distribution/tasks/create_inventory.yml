@@ -1,0 +1,6 @@
+---
+- name: "Creating dynamic inventory"
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: "dynamic_temporal_hosts"
+  loop: "{{ host_to_add }}"
