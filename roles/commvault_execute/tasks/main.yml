@@ -41,7 +41,7 @@
 - name: "Crear archivo CSV con encabezado"
   ansible.builtin.copy:
     dest: "/tmp/commvault/report.csv"
-    content: "Hostname,IP,Archivo\n"
+    content: "IP,Hostname,Archivo\n"
     force: false
   delegate_to: localhost
   run_once: true
@@ -70,8 +70,8 @@
   ansible.builtin.lineinfile:
     path: "/tmp/commvault/report.csv"
     line: >-
-      {{ hostvars[inventory_hostname].host_name_real }},
       {{ hostvars[inventory_hostname].host_ip_real }},
+      {{ hostvars[inventory_hostname].host_name_real }},
       {{ file_status | default('NO_INFO') }}
     insertafter: EOF
   delegate_to: localhost
