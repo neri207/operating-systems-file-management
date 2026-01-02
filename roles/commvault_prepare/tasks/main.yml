@@ -1,0 +1,31 @@
+---
+- name: "DEBUG target_hosts"
+  debug:
+    var: target_hosts
+
+# Crear inventario dinámico
+- name: "Create dynamic inventory"
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: dynamic_temporal_hosts
+  loop: "{{ host_to_add }}"
+
+- name: "DEBUG host_to_add"
+  debug:
+    var: host_to_add
+    
+# Preparar directorio temporal
+- name: "Ensure temp directory exists"
+  ansible.builtin.file:
+    path: "/tmp/commvault"
+    state: directory
+    mode: '0755'
+
+# Descargar desde GCP
+- name: "Download Commvault script from GCP"
+  google.cloud.gcp_storage_object:
+    action: download
+    bucket: "{{ gcp_bucket }}"
+    src: "{{ gcp_object }}"
+    dest: "/tmp/commvault/{{ file_name }}"
+    project: "{{ gcp_project }}"
