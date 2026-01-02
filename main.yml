@@ -1,17 +1,24 @@
 ---
-- name: "Commvault | Dynamic inventory"
+###############################################################################
+# 1️⃣ Preparación (localhost)
+###############################################################################
+- name: "Commvault | Prepare"
   hosts: localhost
   connection: local
   gather_facts: false
   roles:
-    - commvault_distribution
+    - commvault_prepare
 
-- name: "Commvault | Distribución tolerante a fallos"
+
+###############################################################################
+# 2️⃣ Ejecución tolerante a fallos
+###############################################################################
+- name: "Commvault | Execute"
   hosts: dynamic_temporal_hosts
   gather_facts: false
   strategy: free
   max_fail_percentage: 100
   ignore_unreachable: true
-
   roles:
-    - commvault_distribution
+    - commvault_execute
+    
