@@ -1,8 +1,4 @@
 ---
-- name: "DEBUG target_hosts"
-  debug:
-    var: target_hosts
-
 # Crear inventario dinámico
 - name: "Create dynamic inventory"
   ansible.builtin.add_host:
@@ -10,10 +6,6 @@
     groups: dynamic_temporal_hosts
   loop: "{{ host_to_add }}"
 
-- name: "DEBUG host_to_add"
-  debug:
-    var: host_to_add
-    
 # Preparar directorio temporal
 - name: "Ensure temp directory exists"
   ansible.builtin.file:
