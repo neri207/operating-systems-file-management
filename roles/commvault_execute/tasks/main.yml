@@ -52,10 +52,17 @@
   ignore_errors: true
 
 # Normalizar hostname e IP por host
+#- name: Definir hostname e IP del host
+#  ansible.builtin.set_fact:
+#    host_name_real: "{{ ansible_hostname | default(inventory_hostname) }}"
+#    host_ip_real: "{{ ansible_default_ipv4.address | default('N/A') }}"
+#  ignore_errors: true
+
+# Normalizar hostname e IP por host
 - name: Definir hostname e IP del host
   ansible.builtin.set_fact:
-    host_name_real: "{{ ansible_hostname | default(inventory_hostname) }}"
-    host_ip_real: "{{ ansible_default_ipv4.address | default('N/A') }}"
+    host_name_real: "{{ ansible_hostname | default(inventory_hostname) | default('N/A') }}"
+    host_ip_real: "{{ ansible_default_ipv4.address }}"
   ignore_errors: true
 
 # Actualizar reporte centralizado
