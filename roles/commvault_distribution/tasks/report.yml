@@ -4,13 +4,11 @@
 ###############################################################################
 
 # 1️⃣ Crear el archivo CSV en AAP con encabezado
-- name: "Crear archivo CSV con encabezado si no existe"
-  ansible.builtin.lineinfile:
-    path: "/tmp/commvault/report.csv"
-    line: "Hostname,IP,Archivo"
-    create: true
-    insertbefore: BOF
-  when: "'Hostname,IP,Archivo' not in lookup('file', '/tmp/commvault/report.csv', errors='ignore')"
+- name: "Crear archivo CSV con encabezado"
+  ansible.builtin.copy:
+    dest: "/tmp/commvault/report.csv"
+    content: "Hostname,IP,Archivo\n"
+    force: false
   delegate_to: localhost
   run_once: true
 
