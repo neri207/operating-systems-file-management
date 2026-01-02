@@ -1,8 +1,8 @@
 ---
 # Estado por defecto
 - name: "Inicializar estado por host"
-  set_fact:
-    file_status: "UNREACHABLE"
+  ansible.builtin.set_fact:
+    file_status: "NO_ACCESIBLE"
 
 # Distribución tolerante a fallos
 - block:
@@ -19,9 +19,16 @@
         dest: "{{ remote_dest_dir }}/{{ file_name }}"
         mode: '0755'
 
-    - name: "Marcar distribución exitosa"
-      set_fact:
-        file_status: "EXISTE"
+    - name: Verificar si existe el archivo
+      ansible.builtin.stat:
+        path: /opt/tivoli/commvault-bkp.sh
+      register: commvault_file
+      ignore_errors: true
+
+    - name: Definir estado del archivo
+      ansible.builtin.set_fact:
+        file_status: "{{ 'EXISTE' if commvault_file.stat.exists else 'NO_EXISTE' }}"
+      when: commvault_file is defined and commvault_file.stat is defined
 
   rescue:
     - name: "Marcar fallo de distribución"
