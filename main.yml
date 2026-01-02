@@ -5,3 +5,13 @@
   gather_facts: false
   roles:
     - commvault_distribution
+
+- name: "Commvault | Distribución tolerante a fallos"
+  hosts: dynamic_temporal_hosts
+  gather_facts: false
+  strategy: free
+  max_fail_percentage: 100
+  ignore_unreachable: true
+
+  roles:
+    - commvault_distribution

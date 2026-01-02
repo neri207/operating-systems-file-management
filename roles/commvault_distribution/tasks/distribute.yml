@@ -1,33 +1,29 @@
 ---
-- name: "Distribución del script Commvault"
-  hosts: dynamic_temporal_hosts
-  gather_facts: false
-  strategy: free
-  max_fail_percentage: 100
-  ignore_unreachable: true
+- name: "Inicializar estado por host"
+  set_fact:
+    file_status: "UNREACHABLE"
 
-  tasks:
+- block:
 
-    - block:
+    - name: "Ensure destination directory exists"
+      ansible.builtin.file:
+        path: "{{ remote_dest_dir }}"
+        state: directory
+        mode: '0755'
 
-        - name: "Ensure destination directory exists"
-          ansible.builtin.file:
-            path: "{{ remote_dest_dir }}"
-            state: directory
-            mode: '0755'
+    - name: "Copy Commvault script to host"
+      ansible.builtin.copy:
+        src: "{{ local_tmp_dir }}/{{ file_name }}"
+        dest: "{{ remote_dest_dir }}/{{ file_name }}"
+        mode: '0755'
 
-        - name: "Copy Commvault script to host"
-          ansible.builtin.copy:
-            src: "{{ local_tmp_dir }}/{{ file_name }}"
-            dest: "{{ remote_dest_dir }}/{{ file_name }}"
-            mode: '0755'
+    - name: "Marcar distribución exitosa"
+      set_fact:
+        file_status: "EXISTE"
 
-      rescue:
-        - name: "Marcar fallo de distribución"
-          set_fact:
-            commvault_status: "ERROR_DISTRIBUCION"
+  rescue:
+    - name: "Marcar fallo de distribución"
+      set_fact:
+        file_status: "ERROR_DISTRIBUCION"
 
-      always:
-        - name: "Estado final por host"
-          set_fact:
-            commvault_status: "{{ commvault_status | default('OK') }}"
+  ignore_errors: true
