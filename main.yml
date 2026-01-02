@@ -21,4 +21,20 @@
   ignore_unreachable: true
   roles:
     - commvault_execute
-    
+
+###############################################################################
+# 3 Subir al Bucket el resultado
+###############################################################################
+
+- name: Subir reporte final a GCP
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Upload report to GCP
+      google.cloud.gcp_storage_object:
+        action: upload
+        bucket: "{{ gcp_bucket }}"
+        dest: "reportes/commvault/report.csv"
+        src: "/tmp/commvault/report.csv"
+        project: "{{ gcp_project }}"
+

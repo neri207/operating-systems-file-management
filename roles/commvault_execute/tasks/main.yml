@@ -78,13 +78,13 @@
   delegate_facts: false
   ignore_errors: true
 
-# Subir reporte al bucket
-- name: "Upload report to GCP"
-  google.cloud.gcp_storage_object:
-    action: upload
-    bucket: "{{ gcp_bucket }}"
-    dest: "reportes/commvault/report.csv"
-    src: "/tmp/commvault/report.csv"
-    project: "{{ gcp_project }}"
-  delegate_to: localhost
-  run_once: true
+## Subir reporte al bucket
+#- name: "Upload report to GCP"
+#  google.cloud.gcp_storage_object:
+#    action: upload
+#    bucket: "{{ gcp_bucket }}"
+#    dest: "reportes/commvault/report.csv"
+#    src: "/tmp/commvault/report.csv"
+#    project: "{{ gcp_project }}"
+#  delegate_to: localhost
+#  run_once: true
