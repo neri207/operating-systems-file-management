@@ -1,0 +1,57 @@
+---
+###############################################################################
+# REPORTE FINAL DE DISTRIBUCIÓN COMMMVAULT
+###############################################################################
+
+# 1️⃣ Crear el archivo CSV en AAP con encabezado
+- name: "Crear archivo CSV con encabezado si no existe"
+  ansible.builtin.lineinfile:
+    path: "/tmp/commvault/report.csv"
+    line: "Hostname,IP,Archivo"
+    create: true
+    insertbefore: BOF
+  when: "'Hostname,IP,Archivo' not in lookup('file', '/tmp/commvault/report.csv', errors='ignore')"
+  delegate_to: localhost
+  run_once: true
+
+# 2️⃣ Validar si el archivo existe en el host destino
+- name: "Validar existencia del archivo Commvault"
+  ansible.builtin.stat:
+    path: "/opt/tivoli/commvault-bkp.sh"
+  register: commvault_file_stat
+  ignore_errors: true
+
+- name: "Normalizar estado del archivo"
+  set_fact:
+    file_status: >-
+      {% if commvault_file_stat is failed %}
+      ERROR_VALIDACION
+      {% elif commvault_file_stat.stat.exists %}
+      EXISTE
+      {% else %}
+      NO_EXISTE
+      {% endif %}
+
+# 3️⃣ Actualizar el reporte (una línea por host)
+- name: "Actualización del reporte"
+  ansible.builtin.lineinfile:
+    path: "/tmp/commvault/report.csv"
+    line: >-
+      {{ inventory_hostname }},
+      {{ ansible_default_ipv4.address | default('N/A') }},
+      {{ file_status | default('NO_INFO') }}
+   # insertafter: EOF
+  delegate_to: localhost
+  ignore_errors: true
+  #delegate_facts: false
+
+# 4️⃣ Carga del reporte al bucket GCP
+- name: "Carga del reporte a GCP Bucket"
+  google.cloud.gcp_storage_object:
+    action: upload
+    bucket: "{{ gcp_bucket }}"
+    dest: "reportes/commvault/report.csv"
+    src: "/tmp/commvault/report.csv"
+    project: "{{ gcp_project }}"
+  delegate_to: localhost
+  run_once: true
