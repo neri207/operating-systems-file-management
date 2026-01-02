@@ -43,8 +43,8 @@
   ansible.builtin.lineinfile:
     path: "/tmp/commvault/report.csv"
     line: >-
-      {{ inventory_hostname }},
-      {{ ansible_default_ipv4.address | default('N/A') }},
+      {{ ansible_hostname }},
+      {{ inventory_hostname | default('N/A') }},
       {{ file_status | default('NO_INFO') }}
     insertafter: EOF
   delegate_to: localhost
