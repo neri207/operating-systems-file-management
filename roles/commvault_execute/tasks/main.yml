@@ -50,6 +50,8 @@
 - name: Obtener facts del host (si responde)
   ansible.builtin.setup:
   ignore_errors: true
+  async: 45
+  poll: 0
 
 # Normalizar hostname e IP por host
 #- name: Definir hostname e IP del host
