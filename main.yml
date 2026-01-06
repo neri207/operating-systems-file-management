@@ -16,9 +16,9 @@
 - name: "Commvault | Execute"
   hosts: dynamic_temporal_hosts
   gather_facts: false
-  strategy: free
-  max_fail_percentage: 100
-  ignore_unreachable: true
+  #strategy: free
+  #max_fail_percentage: 100
+  #ignore_unreachable: true
   roles:
     - commvault_execute
 
