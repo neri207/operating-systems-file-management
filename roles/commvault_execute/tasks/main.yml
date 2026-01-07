@@ -1,74 +1,88 @@
 ---
-# Estado por defecto
-- name: "Inicializar estado por host"
+# 1. Inicializar estados base
+- name: "Inicializar variables de estado"
   ansible.builtin.set_fact:
-    file_status: "NO_ACCESIBLE"
+    file_status: "PENDIENTE"
+    host_name_real: "N/A"
+    host_ip_real: "{{ inventory_hostname }}"
 
-# Distribución tolerante a fallos
+# 2. Intentar recolectar facts con manejo de errores de conexión
+- name: "Recolección de facts (Intento de conexión)"
+  ansible.builtin.setup:
+    gather_subset:
+      - 'min'
+  ignore_unreachable: true
+  ignore_errors: true
+  register: setup_result
+
+# 3. Clasificar si el host es inaccesible
+- name: "Marcar como No accesible por ssh"
+  ansible.builtin.set_fact:
+    file_status: "No accesible por ssh"
+  when: 
+    - setup_result.unreachable is defined and setup_result.unreachable
+    - host_name_real == "N/A"
+
+# 4. Actualizar hostname real si la conexión fue exitosa
+- name: "Asignar hostname real"
+  ansible.builtin.set_fact:
+    host_name_real: "{{ ansible_hostname }}"
+  when: setup_result.unreachable is not defined or not setup_result.unreachable
+
+# 5. Bloque de ejecución principal (Solo si hay conexión)
 - block:
-
-    - name: "Ensure destination directory exists"
+    - name: "Asegurar directorio de destino"
       ansible.builtin.file:
         path: "{{ remote_dest_dir }}"
         state: directory
         mode: '0755'
 
-    - name: "Copy Commvault script"
+    - name: "Copiar script de Commvault"
       ansible.builtin.copy:
         src: "/tmp/commvault/{{ file_name }}"
         dest: "{{ remote_dest_dir }}/{{ file_name }}"
         mode: '0755'
+      register: copy_task
 
-    - name: Verificar si existe el archivo
+    - name: "Validar existencia final"
       ansible.builtin.stat:
-        path: /opt/tivoli/commvault-bkp.sh
-      register: commvault_file
-      ignore_errors: true
+        path: "{{ remote_dest_dir }}/{{ file_name }}"
+      register: final_stat
 
-    - name: Definir estado del archivo
+    - name: "Definir estado EXISTE"
       ansible.builtin.set_fact:
-        file_status: "{{ 'EXISTE' if commvault_file.stat.exists else 'NO_EXISTE' }}"
-      when: commvault_file is defined and commvault_file.stat is defined
+        file_status: "EXISTE"
+      when: final_stat.stat.exists
 
   rescue:
-    - name: "Marcar fallo de distribución"
-      set_fact:
-        file_status: "ERROR_DISTRIBUCION"
+    - name: "Detectar si el fallo fue por falta de espacio"
+      ansible.builtin.set_fact:
+        file_status: "FS lleno"
+      when: >
+        'No space left on device' in (ansible_failed_result.msg | default('')) or
+        'ENOSPC' in (ansible_failed_result.msg | default(''))
 
-  ignore_errors: true
+    - name: "Otros errores (Mantener PENDIENTE si no es FS lleno)"
+      ansible.builtin.set_fact:
+        file_status: "PENDIENTE"
+      when: file_status != "FS lleno"
 
-# Reporte
-- name: "Crear archivo CSV con encabezado"
+  # Este bloque solo corre si el host NO fue marcado como inaccesible
+  when: file_status != "No accesible por ssh"
+
+# 6. Reporte consolidado
+- name: "Preparar archivo CSV en localhost"
   ansible.builtin.copy:
     dest: "/tmp/commvault/report.csv"
-    content: "IP,Hostname,Archivo\n"
+    content: "IP,Hostname,Estado\n"
     force: false
   delegate_to: localhost
   run_once: true
 
-# Obtener facts sin romper ejecución
-- name: Obtener facts del host (si responde)
-  ansible.builtin.setup:
-  ignore_errors: true
-  async: 45
-  poll: 0
-
-# Normalizar hostname e IP por host
-- name: Definir hostname e IP del host
-  ansible.builtin.set_fact:
-    host_name_real: "{{ ansible_hostname | default('N/A') }}"
-    host_ip_real: "{{ inventory_hostname }}"
-  ignore_errors: true
-
-# Actualizar reporte centralizado
-- name: "Actualizar reporte"
+- name: "Registrar datos en el reporte"
   ansible.builtin.lineinfile:
     path: "/tmp/commvault/report.csv"
-    line: >-
-      {{ hostvars[inventory_hostname].host_ip_real }},
-      {{ hostvars[inventory_hostname].host_name_real }},
-      {{ file_status | default('NO_INFO') }}
+    line: "{{ host_ip_real }},{{ host_name_real }},{{ file_status }}"
     insertafter: EOF
   delegate_to: localhost
-  delegate_facts: false
-  ignore_errors: true
+  throttle: 1 # Evita colisiones de escritura en el archivo
