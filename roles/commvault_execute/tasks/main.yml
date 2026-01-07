@@ -1,35 +1,34 @@
 ---
-# 1. Inicializar estados base
+# 1. Inicialización ultra-resiliente
 - name: "Inicializar variables de estado"
   ansible.builtin.set_fact:
     file_status: "PENDIENTE"
     host_name_real: "N/A"
     host_ip_real: "{{ inventory_hostname }}"
+    detected_os: "Desconocido"
 
-# 2. Intentar recolectar facts con manejo de errores de conexión
+# 2. Intento de recolección de facts (Mínimo esfuerzo)
 - name: "Recolección de facts (Intento de conexión)"
   ansible.builtin.setup:
-    gather_subset:
-      - 'min'
+    gather_subset: ['!all', 'min']
   ignore_unreachable: true
   ignore_errors: true
   register: setup_result
 
-# 3. Clasificar si el host es inaccesible
-- name: "Marcar como No accesible por ssh"
+# 3. Clasificación inteligente de errores de plataforma
+- name: "Clasificar estado y OS"
   ansible.builtin.set_fact:
-    file_status: "No accesible por ssh"
-  when: 
-    - setup_result.unreachable is defined and setup_result.unreachable
-    - host_name_real == "N/A"
+    detected_os: "{{ ansible_distribution | default(ansible_system) | default('Incompatible/AIX') }}"
+    file_status: >-
+      {% if setup_result.unreachable is defined and setup_result.unreachable %}
+        No accesible por ssh
+      {% elif setup_result.failed is defined and setup_result.failed %}
+        OS incompatible o Sin Python
+      {% else %}
+        {{ file_status }}
+      {% endif %}
 
-# 4. Actualizar hostname real si la conexión fue exitosa
-- name: "Asignar hostname real"
-  ansible.builtin.set_fact:
-    host_name_real: "{{ ansible_hostname }}"
-  when: setup_result.unreachable is not defined or not setup_result.unreachable
-
-# 5. Bloque de ejecución principal (Solo si hay conexión)
+# 4. Bloque de ejecución principal (Solo si no hay errores de conexión/OS)
 - block:
     - name: "Asegurar directorio de destino"
       ansible.builtin.file:
@@ -44,15 +43,10 @@
         mode: '0755'
       register: copy_task
 
-    - name: "Validar existencia final"
-      ansible.builtin.stat:
-        path: "{{ remote_dest_dir }}/{{ file_name }}"
-      register: final_stat
-
     - name: "Definir estado EXISTE"
       ansible.builtin.set_fact:
         file_status: "EXISTE"
-      when: final_stat.stat.exists
+        host_name_real: "{{ ansible_hostname }}"
 
   rescue:
     - name: "Detectar si el fallo fue por falta de espacio"
@@ -62,15 +56,10 @@
         'No space left on device' in (ansible_failed_result.msg | default('')) or
         'ENOSPC' in (ansible_failed_result.msg | default(''))
 
-    - name: "Otros errores (Mantener PENDIENTE si no es FS lleno)"
-      ansible.builtin.set_fact:
-        file_status: "PENDIENTE"
-      when: file_status != "FS lleno"
+  # Solo intentamos copiar si el setup fue exitoso
+  when: setup_result.failed is not defined or not setup_result.failed
 
-  # Este bloque solo corre si el host NO fue marcado como inaccesible
-  when: file_status != "No accesible por ssh"
-
-# 6. Reporte consolidado
+# 5. Reporte mejorado con columna de OS
 - name: "Preparar archivo CSV en localhost"
   ansible.builtin.copy:
     dest: "/tmp/commvault/report.csv"
