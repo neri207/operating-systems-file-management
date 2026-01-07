@@ -71,8 +71,9 @@
 - name: "Registrar datos en el reporte"
   ansible.builtin.lineinfile:
     path: "/tmp/commvault/report.csv"
-    line: "{{ host_ip_real }},{{ host_name_real }},{{ file_status }}"
+    line: "{{ host_ip_real | trim }},{{ host_name_real | trim }},{{ file_status | trim }}"
     insertafter: EOF
+    create: no
   delegate_to: localhost
   throttle: 1
   ignore_errors: true # Última línea de defensa para que el play termine
