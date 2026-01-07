@@ -20,17 +20,17 @@
   ansible.builtin.set_fact:
     file_status: >-
       {% if setup_result.unreachable is defined and setup_result.unreachable %}
-        No accesible por ssh
+      No accesible por ssh
       {% elif setup_result.failed is defined and setup_result.failed %}
-        OS incompatible o Sin Python
+      OS incompatible o Sin Python
       {% else %}
         {{ file_status }}
       {% endif %}
     detected_os: >-
       {% if setup_result.unreachable is defined and setup_result.unreachable %}
-        N/A (Sin conexión)
+      N/A (Sin conexión)
       {% elif setup_result.failed is defined and setup_result.failed %}
-        OS Incompatible
+      OS Incompatible
       {% else %}
         {{ ansible_distribution | default(ansible_system) | default('AIX/RHEL6') }}
       {% endif %}
