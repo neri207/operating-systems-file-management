@@ -1,5 +1,5 @@
 ---
-# 1. Inicialización ultra-resiliente
+# 1. Inicialización de variables (Siempre se ejecuta)
 - name: "Inicializar variables de estado"
   ansible.builtin.set_fact:
     file_status: "PENDIENTE"
@@ -7,18 +7,17 @@
     host_ip_real: "{{ inventory_hostname }}"
     detected_os: "Desconocido"
 
-# 2. Intento de recolección de facts (Mínimo esfuerzo)
-- name: "Recolección de facts (Intento de conexión)"
+# 2. Intento de conexión y recolección
+- name: "Recolección de facts"
   ansible.builtin.setup:
     gather_subset: ['!all', 'min']
-  ignore_unreachable: true
+  ignore_unreachable: true # ESTA ES LA CLAVE
   ignore_errors: true
   register: setup_result
 
-# 3. Clasificación inteligente de errores de plataforma
+# 3. Clasificación de estado (Manejo explícito de Unreachable)
 - name: "Clasificar estado y OS"
   ansible.builtin.set_fact:
-    detected_os: "{{ ansible_distribution | default(ansible_system) | default('Incompatible/AIX') }}"
     file_status: >-
       {% if setup_result.unreachable is defined and setup_result.unreachable %}
         No accesible por ssh
@@ -27,8 +26,14 @@
       {% else %}
         {{ file_status }}
       {% endif %}
+    detected_os: >-
+      {% if setup_result.unreachable is defined and setup_result.unreachable %}
+        N/A (Sin conexión)
+      {% else %}
+        {{ ansible_distribution | default(ansible_system) | default('Incompatible/AIX') }}
+      {% endif %}
 
-# 4. Bloque de ejecución principal (Solo si no hay errores de conexión/OS)
+# 4. Bloque de ejecución (Solo si hay conexión y Python funcional)
 - block:
     - name: "Asegurar directorio de destino"
       ansible.builtin.file:
@@ -56,22 +61,16 @@
         'No space left on device' in (ansible_failed_result.msg | default('')) or
         'ENOSPC' in (ansible_failed_result.msg | default(''))
 
-  # Solo intentamos copiar si el setup fue exitoso
-  when: setup_result.failed is not defined or not setup_result.failed
+  # Solo entra aquí si no hubo error de conexión ni de Python
+  when: 
+    - setup_result.unreachable is not defined or not setup_result.unreachable
+    - setup_result.failed is not defined or not setup_result.failed
 
-# 5. Reporte mejorado con columna de OS
-- name: "Preparar archivo CSV en localhost"
-  ansible.builtin.copy:
-    dest: "/tmp/commvault/report.csv"
-    content: "IP,Hostname,Estado\n"
-    force: false
-  delegate_to: localhost
-  run_once: true
-
+# 5. Reporte final (Fuera de cualquier 'when' restrictivo para que incluya a todos)
 - name: "Registrar datos en el reporte"
   ansible.builtin.lineinfile:
     path: "/tmp/commvault/report.csv"
-    line: "{{ host_ip_real }},{{ host_name_real }},{{ file_status }}"
+    line: "{{ host_ip_real }},{{ host_name_real }},{{ detected_os }},{{ file_status }}"
     insertafter: EOF
   delegate_to: localhost
-  throttle: 1 # Evita colisiones de escritura en el archivo
+  throttle: 1
