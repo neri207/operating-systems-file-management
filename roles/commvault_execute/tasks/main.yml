@@ -1,5 +1,5 @@
 ---
-# 1. Inicialización
+# 1. Inicialización de variables base
 - name: "Inicializar variables de estado"
   ansible.builtin.set_fact:
     file_status: "PENDIENTE"
@@ -7,7 +7,7 @@
     host_ip_real: "{{ inventory_hostname }}"
     detected_os: "Desconocido"
 
-# 2. Conexión (Fundamental: ignore_unreachable para no perder hosts en el reporte)
+# 2. Intento de conexión y recolección de facts
 - name: "Recolección de facts"
   ansible.builtin.setup:
     gather_subset: ['!all', 'min']
@@ -15,27 +15,29 @@
   ignore_errors: true
   register: setup_result
 
-# 3. Clasificación de estado
-- name: "Clasificar estado y OS"
+# 3. Capturar el Hostname si la conexión fue exitosa
+# Esto se ejecuta independientemente de si el copiado posterior falla
+- name: "Asignar hostname real si hay conexión"
+  ansible.builtin.set_fact:
+    host_name_real: "{{ ansible_hostname | default('N/A') }}"
+    detected_os: "{{ ansible_distribution | default(ansible_system) | default('AIX/RHEL6') }}"
+  when: 
+    - setup_result.unreachable is not defined or not setup_result.unreachable
+    - setup_result.failed is not defined or not setup_result.failed
+
+# 4. Clasificación de estado de conexión/plataforma
+- name: "Clasificar estado inicial"
   ansible.builtin.set_fact:
     file_status: >-
       {% if setup_result.unreachable is defined and setup_result.unreachable %}
-      No accesible por ssh
+        No accesible por ssh
       {% elif setup_result.failed is defined and setup_result.failed %}
-      OS incompatible o Sin Python
+        OS incompatible o Sin Python
       {% else %}
         {{ file_status }}
       {% endif %}
-    detected_os: >-
-      {% if setup_result.unreachable is defined and setup_result.unreachable %}
-      N/A (Sin conexión)
-      {% elif setup_result.failed is defined and setup_result.failed %}
-      OS Incompatible
-      {% else %}
-        {{ ansible_distribution | default(ansible_system) | default('AIX/RHEL6') }}
-      {% endif %}
 
-# 4. Bloque de ejecución (Solo si el setup no fue fatal)
+# 5. Bloque de ejecución de tareas de archivo
 - block:
     - name: "Asegurar directorio de destino"
       ansible.builtin.file:
@@ -53,7 +55,6 @@
     - name: "Definir estado EXISTE"
       ansible.builtin.set_fact:
         file_status: "EXISTE"
-        host_name_real: "{{ ansible_hostname }}"
 
   rescue:
     - name: "Detectar si el fallo fue por falta de espacio"
@@ -63,17 +64,17 @@
         'No space left on device' in (ansible_failed_result.msg | default('')) or
         'ENOSPC' in (ansible_failed_result.msg | default(''))
 
+  # Solo intentamos el bloque si el setup funcionó
   when: 
     - setup_result.unreachable is not defined or not setup_result.unreachable
     - setup_result.failed is not defined or not setup_result.failed
 
-# 5. Registro en el reporte (Debe estar fuera de condicionales para capturar TODO)
+# 6. Registro en el reporte (Limpio y sin saltos de línea)
 - name: "Registrar datos en el reporte"
   ansible.builtin.lineinfile:
     path: "/tmp/commvault/report.csv"
-    line: "{{ host_ip_real | trim }},{{ host_name_real | trim }},{{ file_status | trim }}"
+    line: "{{ host_ip_real | trim }},{{ host_name_real | trim }},{{ detected_os | trim }},{{ file_status | trim }}"
     insertafter: EOF
-    create: no
   delegate_to: localhost
   throttle: 1
-  ignore_errors: true # Última línea de defensa para que el play termine
+  ignore_errors: true
