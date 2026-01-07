@@ -1,9 +1,11 @@
 ---
-host_to_add: "{{ target_hosts | split('\n') | map('trim') | difference(['']) }}"
+# Proyecto: operating-systems-file-management
+# Ubicación: - Proyecto/group_vars/all.yml
 
+host_to_add: "{{ target_hosts | split('\n') | map('trim') | difference(['']) }}"
 gcp_bucket: "sit-devops-repository-bkt05"
 gcp_object: "Files/commvault/commvault-bkp.sh"
 gcp_project: "sit-devops-repository"
-
 file_name: "commvault-bkp.sh"
-remote_dest_dir: "/opt/tivoli"
+#remote_dest_dir: "/opt/tivoli"
+remote_dest_dir: "{{ custom_path | trim }}"

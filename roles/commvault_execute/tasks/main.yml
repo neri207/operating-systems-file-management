@@ -7,7 +7,19 @@
     host_ip_real: "{{ inventory_hostname }}"
     detected_os: "Desconocido"
 
-# 2. Intento de conexión y recolección de facts
+# 2. Validación de seguridad de la ruta dinámica
+- name: "Validar que la ruta de destino sea segura"
+  ansible.builtin.assert:
+    that:
+      - "remote_dest_dir not in ['/', '/etc', '/boot', '/root', '/bin', '/sbin']"
+      - "not remote_dest_dir.startswith('/etc/')"
+      - "not remote_dest_dir.startswith('/boot/')"
+    fail_msg: "ERROR DE SEGURIDAD: La ruta '{{ remote_dest_dir }}' está prohibida o es del sistema."
+    success_msg: "Ruta '{{ remote_dest_dir }}' validada correctamente."
+  delegate_to: localhost
+  run_once: true
+
+# 3. Intento de conexión y recolección de facts
 - name: "Recolección de facts"
   ansible.builtin.setup:
     gather_subset: ['!all', 'min']
@@ -15,7 +27,7 @@
   ignore_errors: true
   register: setup_result
 
-# 3. Capturar el Hostname si la conexión fue exitosa
+# 4 Capturar el Hostname si la conexión fue exitosa
 # Esto se ejecuta independientemente de si el copiado posterior falla
 - name: "Asignar hostname real si hay conexión"
   ansible.builtin.set_fact:
@@ -25,7 +37,7 @@
     - setup_result.unreachable is not defined or not setup_result.unreachable
     - setup_result.failed is not defined or not setup_result.failed
 
-# 4. Clasificación de estado de conexión/plataforma
+# 5. Clasificación de estado de conexión/plataforma
 - name: "Clasificar estado inicial"
   ansible.builtin.set_fact:
     file_status: >-
@@ -37,7 +49,7 @@
         {{ file_status }}
       {% endif %}
 
-# 5. Bloque de ejecución de tareas de archivo
+# 6. Bloque de ejecución de tareas de archivo
 - block:
     - name: "Asegurar directorio de destino"
       ansible.builtin.file:
@@ -69,7 +81,7 @@
     - setup_result.unreachable is not defined or not setup_result.unreachable
     - setup_result.failed is not defined or not setup_result.failed
 
-# 6. Registro en el reporte (Limpio y sin saltos de línea)
+# 7. Registro en el reporte (Limpio y sin saltos de línea)
 - name: "Registrar datos en el reporte"
   ansible.builtin.lineinfile:
     path: "/tmp/commvault/report.csv"
