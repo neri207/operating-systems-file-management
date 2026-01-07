@@ -1,5 +1,5 @@
 ---
-# 1. Inicialización de variables (Siempre se ejecuta)
+# 1. Inicialización
 - name: "Inicializar variables de estado"
   ansible.builtin.set_fact:
     file_status: "PENDIENTE"
@@ -7,15 +7,15 @@
     host_ip_real: "{{ inventory_hostname }}"
     detected_os: "Desconocido"
 
-# 2. Intento de conexión y recolección
+# 2. Conexión (Fundamental: ignore_unreachable para no perder hosts en el reporte)
 - name: "Recolección de facts"
   ansible.builtin.setup:
     gather_subset: ['!all', 'min']
-  ignore_unreachable: true # ESTA ES LA CLAVE
+  ignore_unreachable: true
   ignore_errors: true
   register: setup_result
 
-# 3. Clasificación de estado (Manejo explícito de Unreachable)
+# 3. Clasificación de estado
 - name: "Clasificar estado y OS"
   ansible.builtin.set_fact:
     file_status: >-
@@ -29,11 +29,13 @@
     detected_os: >-
       {% if setup_result.unreachable is defined and setup_result.unreachable %}
         N/A (Sin conexión)
+      {% elif setup_result.failed is defined and setup_result.failed %}
+        OS Incompatible
       {% else %}
-        {{ ansible_distribution | default(ansible_system) | default('Incompatible/AIX') }}
+        {{ ansible_distribution | default(ansible_system) | default('AIX/RHEL6') }}
       {% endif %}
 
-# 4. Bloque de ejecución (Solo si hay conexión y Python funcional)
+# 4. Bloque de ejecución (Solo si el setup no fue fatal)
 - block:
     - name: "Asegurar directorio de destino"
       ansible.builtin.file:
@@ -61,16 +63,16 @@
         'No space left on device' in (ansible_failed_result.msg | default('')) or
         'ENOSPC' in (ansible_failed_result.msg | default(''))
 
-  # Solo entra aquí si no hubo error de conexión ni de Python
   when: 
     - setup_result.unreachable is not defined or not setup_result.unreachable
     - setup_result.failed is not defined or not setup_result.failed
 
-# 5. Reporte final (Fuera de cualquier 'when' restrictivo para que incluya a todos)
+# 5. Registro en el reporte (Debe estar fuera de condicionales para capturar TODO)
 - name: "Registrar datos en el reporte"
   ansible.builtin.lineinfile:
     path: "/tmp/commvault/report.csv"
-    line: "{{ host_ip_real }},{{ host_name_real }},{{ detected_os }},{{ file_status }}"
+    line: "{{ host_ip_real }},{{ host_name_real }},{{ file_status }}"
     insertafter: EOF
   delegate_to: localhost
   throttle: 1
+  ignore_errors: true # Última línea de defensa para que el play termine

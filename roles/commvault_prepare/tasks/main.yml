@@ -1,4 +1,7 @@
 ---
+# Proyecto: operating-systems-file-management
+# Ubicación: - Proyecto/roles/commvault_prepare/tasks/main.yml
+
 # Crear inventario dinámico
 - name: "Create dynamic inventory"
   ansible.builtin.add_host:
@@ -12,6 +15,13 @@
     path: "/tmp/commvault"
     state: directory
     mode: '0755'
+
+- name: "Asegurar que el archivo de reporte CSV existe con encabezados"
+  ansible.builtin.copy:
+    dest: "/tmp/commvault/report.csv"
+    content: "IP,Hostname,Estado\n"
+    force: true # Esto limpia el reporte viejo en cada ejecución nueva
+    mode: '0644'
 
 # Descargar desde GCP
 - name: "Download Commvault script from GCP"
