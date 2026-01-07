@@ -1,9 +1,0 @@
----
-local_tmp_dir: "/tmp/commvault"
-remote_dest_dir: "/opt/tivoli"
-
-file_name: "commvault-bkp.sh"
-
-gcp_bucket: "sit-devops-repository-bkt05"
-gcp_object: "Files/commvault/commvault-bkp.sh"
-gcp_project: "sit-devops-repository"

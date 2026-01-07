@@ -1,9 +1,0 @@
----
-- name: "Inicializar estado por host"
-  set_fact:
-    file_status: "UNREACHABLE"
-    
-- import_tasks: create_inventory.yml
-- import_tasks: download_from_gcp.yml
-- import_tasks: distribute.yml
-- import_tasks: report.yml

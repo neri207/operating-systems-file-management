@@ -54,13 +54,6 @@
   poll: 0
 
 # Normalizar hostname e IP por host
-#- name: Definir hostname e IP del host
-#  ansible.builtin.set_fact:
-#    host_name_real: "{{ ansible_hostname | default(inventory_hostname) }}"
-#    host_ip_real: "{{ ansible_default_ipv4.address | default('N/A') }}"
-#  ignore_errors: true
-
-# Normalizar hostname e IP por host
 - name: Definir hostname e IP del host
   ansible.builtin.set_fact:
     host_name_real: "{{ ansible_hostname | default('N/A') }}"
@@ -79,14 +72,3 @@
   delegate_to: localhost
   delegate_facts: false
   ignore_errors: true
-
-## Subir reporte al bucket
-#- name: "Upload report to GCP"
-#  google.cloud.gcp_storage_object:
-#    action: upload
-#    bucket: "{{ gcp_bucket }}"
-#    dest: "reportes/commvault/report.csv"
-#    src: "/tmp/commvault/report.csv"
-#    project: "{{ gcp_project }}"
-#  delegate_to: localhost
-#  run_once: true
