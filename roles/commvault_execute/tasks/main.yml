@@ -85,7 +85,7 @@
 - name: "Registrar datos en el reporte"
   ansible.builtin.lineinfile:
     path: "/tmp/{{ gcp_subdirectory }}/report.csv"
-    line: "{{ host_ip_real | trim }},{{ host_name_real | trim }},{{ gcp_archive | trim }},{{ file_status | trim }}"
+    line: "{{ host_ip_real | trim }},{{ host_name_real | trim }},{{ gcp_archive | trim }},{{ file_status | trim }},{{ remote_dest_dir | trim }}"
     insertafter: EOF
   delegate_to: localhost
   throttle: 1
