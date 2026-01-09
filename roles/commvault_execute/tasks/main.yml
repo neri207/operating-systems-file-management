@@ -65,17 +65,28 @@
         mode: '0755'
       register: copy_task
 
-    - name: "Definir estado EXISTE"
+    - name: "Descomprimir archivo (Solo si es .zip)"
+      ansible.builtin.unarchive:
+        src: "{{ remote_dest_dir }}/{{ gcp_archive }}" # Ruta del archivo copiado
+        dest: "{{ remote_dest_dir }}"                 # Carpeta destino
+        remote_src: yes                                # El archivo ya está en el servidor remoto
+        mode: '0755'
+      register: unarchive_result
+      # Esta tarea solo corre si la extensión es .zip
+      when: gcp_archive.endswith('.zip')
+
+    - name: "Definir estado EXISTE y DESCOMPRIMIDO"
       ansible.builtin.set_fact:
-        file_status: "EXISTE"
+        file_status: "{{ 'Descomprimido' if (unarchive_result.changed or unarchive_result.skipped is not defined) else 'Existe' }}"
 
   rescue:
     - name: "Detectar si el fallo fue por falta de espacio"
       ansible.builtin.set_fact:
-        file_status: "FS lleno"
+        file_status: "Filesystem lleno"
       when: >
         'No space left on device' in (ansible_failed_result.msg | default('')) or
         'ENOSPC' in (ansible_failed_result.msg | default(''))
+        'space' in (ansible_failed_result.stderr | default('') | lower)
 
   # Solo intentamos el bloque si el setup funcionó
   when: 
