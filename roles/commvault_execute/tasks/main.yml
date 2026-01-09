@@ -84,7 +84,7 @@
 # 7. Registro en el reporte (Limpio y sin saltos de línea)
 - name: "Registrar datos en el reporte"
   ansible.builtin.lineinfile:
-    path: "/tmp/commvault/report.csv"
+    path: "/tmp/{{ gcp_subdirectory }}/report.csv"
     line: "{{ host_ip_real | trim }},{{ host_name_real | trim }},{{ gcp_archive }},{{ file_status | trim }}"
     insertafter: EOF
   delegate_to: localhost
