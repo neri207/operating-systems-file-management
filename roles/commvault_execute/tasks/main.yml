@@ -59,8 +59,8 @@
 
     - name: "Copiar script de Commvault"
       ansible.builtin.copy:
-        src: "/tmp/commvault/{{ file_name }}"
-        dest: "{{ remote_dest_dir }}/{{ file_name }}"
+        src: "/tmp/{{ gcp_subdirectory }}/{{ gcp_archive }}"
+        dest: "{{ remote_dest_dir }}/{{ gcp_archive }}"
         mode: '0755'
       register: copy_task
 

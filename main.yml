@@ -33,5 +33,5 @@
         action: upload
         bucket: "{{ gcp_bucket }}"
         dest: "reportes/commvault/report.csv"
-        src: "/tmp/commvault/report.csv"
+        src: "/tmp/{{ gcp_object }}/report.csv"
         project: "{{ gcp_project }}"
