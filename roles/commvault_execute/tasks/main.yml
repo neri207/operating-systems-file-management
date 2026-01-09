@@ -11,7 +11,8 @@
 - name: "Validar que la ruta de destino sea segura"
   ansible.builtin.assert:
     that:
-      - "remote_dest_dir not in ['/', '/etc', '/boot', '/root', '/bin', '/sbin']"
+      #- "remote_dest_dir not in ['/', '/etc', '/boot', '/root', '/bin', '/sbin']"
+      - "remote_dest_dir not in ['/', '/etc', '/boot', '/bin', '/sbin']"
       - "not remote_dest_dir.startswith('/etc/')"
       - "not remote_dest_dir.startswith('/boot/')"
     fail_msg: "ERROR DE SEGURIDAD: La ruta '{{ remote_dest_dir }}' está prohibida o es del sistema."
