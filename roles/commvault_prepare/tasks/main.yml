@@ -29,6 +29,6 @@
     action: download
     bucket: "{{ gcp_bucket }}"
     src: "{{ gcp_object }}"
-    dest: "/tmp/{{ gcp_subdirectory }}}/{{ gcp_archive }}"
+    dest: "/tmp/{{ gcp_subdirectory }}/{{ gcp_archive }}"
     #dest: "/tmp/{{ gcp_object }}/{{ gcp_archive }}"
     project: "{{ gcp_project }}"
