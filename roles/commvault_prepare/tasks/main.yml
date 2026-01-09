@@ -19,7 +19,7 @@
 - name: "Asegurar que el archivo de reporte CSV existe con encabezados"
   ansible.builtin.copy:
     dest: "/tmp/commvault/report.csv"
-    content: "IP,Hostname,Estado\n"
+    content: "IP,Hostname,,Archivo,Estado\n"
     force: true # Esto limpia el reporte viejo en cada ejecución nueva
     mode: '0644'
 
@@ -29,6 +29,6 @@
     action: download
     bucket: "{{ gcp_bucket }}"
     src: "{{ gcp_object }}"
-    dest: "/tmp/{{ gcp_object }}"
+    dest: "/tmp/{{ gcp_subdirectory }}}/{{ gcp_archive }}"
     #dest: "/tmp/{{ gcp_object }}/{{ gcp_archive }}"
     project: "{{ gcp_project }}"
