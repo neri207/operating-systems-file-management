@@ -65,6 +65,22 @@
         mode: '0755'
       register: copy_task
 
+    - name: "Instalar unzip si no está presente (RedHat/SUSE)"
+      block:
+        - name: "Verificar si unzip existe"
+          ansible.builtin.shell: "command -v unzip"
+          register: unzip_check
+          ignore_errors: true
+          changed_when: false
+
+        - name: "Instalar unzip en RedHat/CentOS/SLES"
+          ansible.builtin.package:
+            name: unzip
+            state: present
+          become: true # Requiere privilegios de root
+          when: unzip_check.rc != 0
+      when: gcp_archive.endswith('.zip')
+
     - name: "Descomprimir archivo (Solo si es .zip)"
       ansible.builtin.unarchive:
         src: "{{ remote_dest_dir }}/{{ gcp_archive }}" # Ruta del archivo copiado
@@ -85,8 +101,13 @@
         file_status: "Filesystem lleno"
       when: >
         'No space left on device' in (ansible_failed_result.msg | default('')) or
-        'ENOSPC' in (ansible_failed_result.msg | default(''))
+        'ENOSPC' in (ansible_failed_result.msg | default('')) or
         'space' in (ansible_failed_result.stderr | default('') | lower)
+
+    - name: "Otros errores de ejecución"
+      ansible.builtin.set_fact:
+        file_status: "ERROR_EJECUCION"
+      when: file_status == "PENDIENTE"
 
   # Solo intentamos el bloque si el setup funcionó
   when: 
