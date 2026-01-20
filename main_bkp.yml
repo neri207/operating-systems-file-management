@@ -1,0 +1,37 @@
+---
+# Proyecto: operating-systems-file-management
+# Ubicación: - Proyecto/main.yml
+
+###############################################################################
+# 1 Preparación (localhost)
+###############################################################################
+- name: "Commvault | Prepare"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - commvault_prepare
+
+###############################################################################
+# 2️ Ejecución tolerante a fallos
+###############################################################################
+- name: "Commvault | Execute"
+  hosts: dynamic_temporal_hosts
+  gather_facts: false
+  roles:
+    - commvault_execute
+
+###############################################################################
+# 3 Subir al Bucket el resultado
+###############################################################################
+- name: Subir reporte final a GCP
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Upload report to GCP
+      google.cloud.gcp_storage_object:
+        action: upload
+        bucket: "{{ gcp_bucket }}"
+        dest: "reportes/commvault/report.csv"
+        src: "/tmp/{{ gcp_subdirectory }}/report.csv"
+        project: "{{ gcp_project }}"

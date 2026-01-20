@@ -1,37 +1,83 @@
 ---
-# Proyecto: operating-systems-file-management
-# Ubicación: - Proyecto/main.yml
-
-###############################################################################
-# 1 Preparación (localhost)
-###############################################################################
-- name: "Commvault | Prepare"
+- name: "CONTROL-M | Orquestador de Inventario Dinámico"
   hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - commvault_prepare
+  tasks:
+    - name: "Carga de hosts desde encuesta"
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: "dynamic_temporal_hosts"
+      loop: "{{ target_hosts | split('\n') | map('trim') | difference(['']) }}"
 
-###############################################################################
-# 2️ Ejecución tolerante a fallos
-###############################################################################
-- name: "Commvault | Execute"
-  hosts: dynamic_temporal_hosts
-  gather_facts: false
-  roles:
-    - commvault_execute
-
-###############################################################################
-# 3 Subir al Bucket el resultado
-###############################################################################
-- name: Subir reporte final a GCP
-  hosts: localhost
+- name: "CONTROL-M | Ejecución con Filtro de Conectividad"
+  hosts: "dynamic_termporal_hosts"
   gather_facts: false
   tasks:
-    - name: Upload report to GCP
+    # --- PASO 1: FILTRO SSH ---
+    - name: "Validar Conectividad SSH"
+      ansible.builtin.wait_for_connection:
+        timeout: 10
+      ignore_unreachable: true
+      ignore_errors: true
+      register: ssh_check
+
+    - name: "Definir Estado de Conexión"
+      ansible.builtin.set_fact:
+        ssh_status: "{{ 'Alcanzable' if (ssh_check.unreachable is not defined or not ssh_check.unreachable) else 'Inalcanzable' }}"
+
+    # --- PASO 2: EJECUCIÓN (Solo Alcanzables) ---
+    - name: "Ejecutar validación de Agente"
+      ansible.builtin.import_tasks: controlm-validation.yml
+      when: ssh_status == 'Alcanzable'
+          
+    - name: Creación de directorio
+      ansible.builtin.file:
+        path: /tmp/controlm
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+
+  # Tratamiento del reporte
+    - name: Descarga del reporte # noqa: args run-once[task]
+      google.cloud.gcp_storage_object:               # Colección de GCP para tratar objetos de almacenamiento
+        action: download                             # Acción de descarga desde el bucket
+        bucket: "sit-devops-repository-bkt05"        # Nombre del bucket donde se encuentra el reporte
+        src: "reportes/dev-so/report.csv"              # Ubicación del reporte.csv desde el bucket de GCP
+        dest: "/tmp/controlm/report.csv"                 # Destino donde se depositará y el nombre que tendrá
+        project: "sit-devops-repository"             # Proyecto de GCP
+      delegate_to: localhost                         # Esta actividad la hace directamente en la localidad del nodo de Ansible
+      run_once: true                                 # Esta actividad solo se ejecuta 1 sola vez por ejecución del playbook
+
+    # Crear el archivo en localhost y su encabezado
+    - name: Crear archivo CSV con encabezado si no existe # noqa: args run-once[task]
+      ansible.builtin.lineinfile:
+        #dest: "/tmp/kpis/report.csv"
+        path: "/tmp/controlm/report.csv" # Versión mejorada de dest para evitar que se duplique el encabezado
+        line: "Hostname,IP,SSH,ControlM,Fecha"
+        create: true                 # Parte de la mejora
+        insertbefore: BOF
+      when: "'Hostname,IP,Timezone_Antes' not in lookup('file', '/tmp/controlm/report.csv', errors='ignore')"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Registrar fila en reporte (Garantiza una línea por host)
+      ansible.builtin.lineinfile:
+        path: "/tmp/controlm/report.csv"
+        # Usamos default('N/D') para que si una tarea no corrió, el CSV no se rompa
+        line: >-
+          {{ ansible_hostname | default(inventory_hostname) }},
+          {{ ansible_default_ipv4.address | default(inventory_hostname) }},
+          {{ global_status | default('Revisar') }},
+          {{ controlm_result | default('N/A (Host Inalcanzable)') }}
+          {{ ansible_date_time.date }}
+        delegate_to: localhost
+      throttle: 1  # Evita que múltiples hosts escriban al mismo tiempo
+
+    - name: Carga del reporte # noqa: args run-once[task]
       google.cloud.gcp_storage_object:
         action: upload
-        bucket: "{{ gcp_bucket }}"
-        dest: "reportes/commvault/report.csv"
-        src: "/tmp/{{ gcp_subdirectory }}/report.csv"
-        project: "{{ gcp_project }}"
+        bucket: "sit-devops-repository-bkt05"
+        dest: "reportes/dev-so/report.csv"
+        src: "/tmp/controlm/report.csv"
+        project: "sit-devops-repository"
+      delegate_to: localhost
+      run_once: true

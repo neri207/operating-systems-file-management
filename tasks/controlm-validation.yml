@@ -1,0 +1,32 @@
+---
+- name: "CONTROL-M | Tareas de Agente"
+  block:
+    - name: "CONTROL-M | Verificar proceso p_ctmag"
+      ansible.builtin.shell: "ps -ef | grep p_ctmag | grep -v grep"
+      register: ctm_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: "CONTROL-M | Intentar levantar el agente"
+      ansible.builtin.shell: "/ctmagent/ctm/scripts/start-ag -u ctmagent -p ALL"
+      when: ctm_check.rc != 0
+      register: ctm_start
+      ignore_errors: true
+
+    - name: "CONTROL-M | Re-verificar estado"
+      ansible.builtin.shell: "ps -ef | grep p_ctmag | grep -v grep"
+      register: ctm_final_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: "CONTROL-M | Definir Resultado"
+      ansible.builtin.set_fact:
+        ctm_status: >-
+          {% if ctm_final_check.rc == 0 %}
+            {% if ctm_check.rc != 0 %} AUTO_REPARADO {% else %} ACTIVO {% endif %}
+          {% else %}
+            ERROR_AL_LEVANTAR
+          {% endif %}
+  rescue:
+    - ansible.builtin.set_fact:
+        ctm_status: "ERROR_EN_TAREA"

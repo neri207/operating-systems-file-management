@@ -1,2 +1,2 @@
 # operating-systems-file-management
-Este proyecto es para la distribución de archivos para commvault
+Este proyecto es para la validación del agente de Control-M vía email.
